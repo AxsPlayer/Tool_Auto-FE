@@ -1,5 +1,7 @@
-# Auto-FE
+# Auto-FE(developing)
 Automatically Feature Engineering for Machine Learning.
+
+![Pokemon](https://github.com/AxsPlayer/auto-FE/blob/master/auto-FE/image/pokemon.png)
 
 ## Motivation.
 In a lot of cases, there are bunch of dirty works to do with feature engineering, especially for traditional machine learning. 80 percent of time is wasted in feature engineering. Thus, it’s helpful if some normal and fixed steps in feature engineering could be done by code automatically.
