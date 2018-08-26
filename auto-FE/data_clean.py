@@ -6,6 +6,39 @@ This package is used for data cleaning, containing several kind of data cleaning
 # Import necessary libraries.
 import numpy as np
 from sklearn import preprocessing as pp
+from sklearn import svm
+from sklearn.covariance import EllipticEnvelope
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
+
+
+class OutlierDetector(object):
+    """
+    The class of several methods to detect outliers.
+    """
+    def __init__(self, data):
+        """Initialize outlier detector with dataframe.
+
+        :param data: Dataframe. Input Pandas dataframe, without target column.
+        """
+        self.data = data
+
+    def
+
+class OverSampler(object):
+    """
+    The class of several methods for oversampling.
+    """
+    def __init__(self, data, target_column):
+        """Initialize sampler with dataframe, as well as target column name.
+
+        :param data: Dataframe. Input Pandas dataframe, with target column.
+        :param target_column: String. The target column name.
+        """
+        self.data = data
+        self.target_column = target_column
+
+
 
 
 def fill_na(data, column_list):
@@ -41,14 +74,15 @@ def fill_na(data, column_list):
     return data
 
 
-def wash_data(data, outlier=False):
+def wash_data(data, target_column, outlier=False):
     """Clean unusual data rows.
 
     Remove repetitive rows, rows with too many missing values, and report rows which
     should be considered as outliers.
 
     :param data: Dataframe. The Pandas dataframe to be washed.
-    :param outlier: Boolean value. Whether to discard or not.
+    :param target_column: String. The target column name.
+    :param outlier: Boolean value. [default: False]. Whether to discard or not.
 
     :return: Dataframe. The converted Pandas dataframe.
     """
@@ -60,6 +94,28 @@ def wash_data(data, outlier=False):
     data = data.dropna(thresh=int(data.shape[1]*percent))
 
     # Detect outliers and report or remove.
+
+
+def sample_data(data, target_column, method='both'):
+    """Sample the data to be balanced.
+
+    Down-sampling majority class and over-sampling minority class to have the ratio of 1:1.
+    This version only supports for binary classification.
+
+    :param data: Dataframe. The Pandas dataframe to be sampled.
+    :param target_column: String. The target column name.
+    :param method: String. [default: 'both']. Choose from list ['both', 'down-sampling', 'over-sampling']. When
+                set to 'both', both methods will be applied to dataframe, or when set to ether
+                of other two methods, the corresponding method will be applied to dataframe alone.
+
+    :return: Dataframe. The converted Pandas dataframe.
+    """
+    # Check the target column to decide which are majority label and minority label.
+    major_label = data[target_column].value_counts().keys()[0]
+    minor_label = data[target_column].value_counts().keys()[1]
+
+    # Down-sampling the majority class data.
     
+
 
 
