@@ -162,37 +162,83 @@ class UnderSampler(object):
         return data
 
 
-def fill_na(data, column_list):
-    """Fill 'NA' in columns.
+class NaFiller(object):
+    """The class created to fill NA.
 
-    Fill 'NA' in category columns with 'missing' value, and fill 'NA' in numeric columns
-    with mean or median, as well as creating flag column recording whether the value is
-    'NA' or not.
-
-    :param data: Dataframe. The Pandas dataframe to be analyzed.
-    :param column_list: List. The list contains column names which would be converted in function.
-
-    :return: Dataframe. The converted Pandas dataframe.
     """
-    # Loop through column list.
-    for column in column_list:
-        # Check whether column contains 'NA' or not.
-        if not df.isnull().any():
-            continue
-        # If contain 'NA', check the type of column, category or numeric.
-        if data.dtypes[column] not in ['float', 'int']:
-            # Fill 'NA' with 'missing' value in category column.
-            data[column] = data[column].fillna('missing')
-        else:
-            # Fill 'NA' with mean value in numeric column.
-            imp = pp.Imputer(missing_values='NaN', strategy='mean', axis=0)
-            data[column] = imp.fit_transform(data[column])
+    def __init__(self, numeric_method='mean'):
+        """Initialize class with given parameters.
 
-            # Create flag column, '1' for missing value, '0' for not.
-            data[column + '_flag'] = np.zeros(shape=len(data[column]))
-            data[column + '_flag'][data[column][data[column].isnull().values is True].index.tolist()] = 1
+        :param numeric_method: String. The method to calculate values to fill na in
+                            numeric columns.
+        """
+        # Assign parameters.
+        self.numeric_method = numeric_method
+        # Create dictionary to store imputer of each numeric column.
+        self.num_imputer_dic = {}
 
-    return data
+    def fit_transform(self, data, column_list):
+        """Fill 'NA' in columns.
+
+        Fill 'NA' in category columns with 'missing' value, and fill 'NA' in numeric columns
+        with mean or median, as well as creating flag column recording whether the value is
+        'NA' or not.
+
+        :param data: Dataframe. The Pandas dataframe to be analyzed.
+        :param column_list: List. The list contains column names which would be converted in function.
+
+        :return: Dataframe: The converted Pandas dataframe.
+        """
+        # Loop through column list.
+        for column in column_list:
+            # Check whether column contains 'NA' or not.
+            if not df.isnull().any():
+                continue
+            # If contain 'NA', check the type of column, category or numeric.
+            if data.dtypes[column] not in ['float', 'int']:
+                # Fill 'NA' with 'missing' value in category column.
+                data[column] = data[column].fillna('missing')
+            else:
+                # Create flag column, '1' for missing value, '0' for not.
+                data[column + '_flag'] = np.zeros(shape=len(data[column]))
+                data[column + '_flag'][data[column][data[column].isnull().values is True].index.tolist()] = 1
+
+                # Fill 'NA' with mean value in numeric column.
+                imp = pp.Imputer(missing_values='NaN', strategy=self.numeric_method, axis=0)
+                data[column] = imp.fit_transform(data[column])
+                self.num_imputer_dic[column] = imp
+
+        return data
+
+    def transform(self, data, column_list):
+        """Transform test data.
+
+        Transform data according to method in fit_transform() function.
+
+        :param data: Dataframe. The Pandas dataframe to be processed.
+        :param column_list: List. The list contains column names which would be converted in function.
+
+        :return: Dataframe. The processed dataframe.
+        """
+        # Loop through column list.
+        for column in column_list:
+            # Check whether column contains 'NA' or not.
+            if not df.isnull().any():
+                continue
+            # If contain 'NA', check the type of column, category or numeric.
+            if data.dtypes[column] not in ['float', 'int']:
+                # Fill 'NA' with 'missing' value in category column.
+                data[column] = data[column].fillna('missing')
+            else:
+                # Create flag column, '1' for missing value, '0' for not.
+                data[column + '_flag'] = np.zeros(shape=len(data[column]))
+                data[column + '_flag'][data[column][data[column].isnull().values is True].index.tolist()] = 1
+
+                # Fill 'NA' using method in fit_transform() function.
+                imp = self.num_imputer_dic[column]
+                data[column] = imp.transform(data[column])
+
+        return data
 
 
 def wash_data(data, target_column, outlier=False):

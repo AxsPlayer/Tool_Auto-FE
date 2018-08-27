@@ -14,6 +14,63 @@ from sklearn.preprocessing import *
 warnings.filterwarnings('ignore')
 
 
+class CategoryCombiner(object):
+    """The class to combine categories with little instance.
+
+    """
+    def __init__(self, cate_columns, discard_ratio=0.01):
+        """Initialize class with given parameters.
+
+        :param cate_columns: List. The list of category columns, which would be processed.
+        :param discard_ratio: The ratio set to filter out categories which
+            should be combined.
+        """
+        # Assign values of parameters.
+        self.cate_columns = cate_columns
+        self.discard_ratio = discard_ratio
+        # Create dictionary to store list of discard categories for each column.
+        self.discard_cate_dic = {}
+
+    def fit_transform(self, data):
+        """Combine categories whose instance number is small, in train data.
+
+        Combine categories whose instance number is small, and replace
+        them with 'Others' value.
+
+        :param data: Dataframe. The Pandas dataframe to be processed.
+
+        :return: Dataframe. The result dataframe after processing.
+        """
+        # Combine categories whose ratio are under discard_ratio into one 'Others' category.
+        for column in self.cate_columns:
+            total_num = float(sum(data[column].value_counts()))
+            discard_cate = []
+            for key in data[column].value_counts().keys():
+                if data[column].value_counts()[key] / total_num < self.discard_ratio:
+                    discard_cate.append(key)
+            data[column] = data[column].replace(discard_cate, 'Others')
+            # Store discard categories for each column.
+            self.discard_cate_dic[column] = discard_cate
+
+        return data
+
+    def transform(self, data):
+        """Combine categories for each column in test data.
+
+        Apply the method in fit() to transform test data in the same way.
+
+        :param data: Dataframe. The Pandas dataframe to be transformed.
+
+        :return: Dataframe. The dataframe after transforming.
+        """
+        # Combine categories whose ratio are under discard_ratio into one 'Others' category.
+        for column in self.cate_columns:
+            discard_cate = self.discard_cate_dic[column]
+            data[column] = data[column].replace(discard_cate, 'Others')
+
+        return data
+
+
 def column_type_detection(data, id_col, target_col):
     """Detect column type and collect according to column type.
 
@@ -133,13 +190,8 @@ def cate_fe(data, cate_columns):
     data[cate_columns] = data[cate_columns].fillna('missing')
 
     # Combine categories whose ratio are under 0.01 into one 'Others' category.
-    for column in cate_columns:
-        total_num = float(sum(data[column].value_counts()))
-        discard_column = []
-        for key in data[column].value_counts().keys():
-            if data[column].value_counts()[key] / total_num < 0.01:
-                discard_column.append(key)
-        data[column] = data[column].replace(discard_column, 'Others')
+    cate_combiner = CategoryCombiner(cate_columns)
+    data = cate_combiner.fit_transform(data)
 
     # Encode category columns with One-hot Encoding method.
     # data = pd.get_dummies(data, columns=cate_columns)
