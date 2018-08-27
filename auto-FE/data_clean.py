@@ -191,9 +191,6 @@ class NaFiller(object):
         """
         # Loop through column list.
         for column in column_list:
-            # Check whether column contains 'NA' or not.
-            if not df.isnull().any():
-                continue
             # If contain 'NA', check the type of column, category or numeric.
             if data.dtypes[column] not in ['float', 'int']:
                 # Fill 'NA' with 'missing' value in category column.
@@ -222,9 +219,6 @@ class NaFiller(object):
         """
         # Loop through column list.
         for column in column_list:
-            # Check whether column contains 'NA' or not.
-            if not df.isnull().any():
-                continue
             # If contain 'NA', check the type of column, category or numeric.
             if data.dtypes[column] not in ['float', 'int']:
                 # Fill 'NA' with 'missing' value in category column.

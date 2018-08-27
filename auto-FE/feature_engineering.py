@@ -4,6 +4,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy
 import warnings
 
 from scipy.stats import kstest
@@ -88,6 +89,7 @@ class CategoryFeatureEngineer(object):
         self.cate_encoding_dic = {}
         self.cate_combiner = None
         self.cate_label_dic = {}
+        self.cate_na_filler = None
 
     def fit_transform(self, data):
         """Feature engineering for category columns.
@@ -105,6 +107,7 @@ class CategoryFeatureEngineer(object):
         # Fill None with 'missing' for category columns.
         na_filler = dc.NaFiller()
         data = na_filler.fit_transform(data, self.cate_columns)
+        self.cate_na_filler = na_filler
 
         # Combine categories whose ratio are under 0.01 into one 'Others' category.
         cate_combiner = CategoryCombiner(self.cate_columns)
@@ -144,7 +147,7 @@ class CategoryFeatureEngineer(object):
         :return: Dataframe. The processed dataframe.
         """
         # Fill None with 'missing' for category columns.
-        data = na_filler.transform(data, self.cate_columns)
+        data = self.cate_na_filler.transform(data, self.cate_columns)
 
         # Combine categories whose ratio are under 0.01 into one 'Others' category.
         data = cate_combiner.transform(data)
@@ -207,7 +210,25 @@ class NumericFeatureEngineer(object):
         # Assign parameters.
         self.num_columns = num_columns
         # Create dictionaries for converters.
-        self.
+        self.num_transform_dic = {}
+        self.num_na_filler = None
+
+    @staticmethod
+    def check_normal_distribution(data):
+        """Function to test whether the data is normal distribution or not.
+
+        Use some statistic methods to test normal distribution, numerically.
+
+        :param data: Dataframe. One column dataframe, waited to be tested.
+
+        :return:
+            stat: Some statistic result from test.
+            p: P-value to reject Null hypothesis, which means it's not normal distribution.
+        """
+        # normality test
+        stat, p = shapiro(data)
+
+        return stat, p
 
     def fit_transform(self, data):
         """Feature engineering for numeric columns.
@@ -215,7 +236,6 @@ class NumericFeatureEngineer(object):
         Conduct feature engineering to numeric columns.
         Including several kind of methods, as followings:
             1. Fill NA wil mean.
-            2. Translate value to none-negative.
             3. Detect and convert to normal distribution.
             4. Standardization.
             5. Round to float3.
@@ -224,86 +244,143 @@ class NumericFeatureEngineer(object):
 
         :return: Dataframe. The output dataframe with converted numeric columns.
         """
-        # Fill None with 'mean' for numerical columns.
-        imputer = Imputer()
-        imputer.fit(data[num_columns])
-        data[num_columns] = imputer.transform(data[num_columns])
-        para_dic['imputer'] = imputer  # Add imputer into para_dic.
-
-        # Convert values in numerical columns to positive values, if there are some negative values.
-        para_dic['translate'] = {}
-        for column in num_columns:
-            if sum(data[column] <= 0) != 0:
-                if min(data[column]) == 0:
-                    data[column] = data[column] + max(data[column]) * 0.01
-                else:
-                    data[column] = data[column] - min(data[column]) * 1.01
-            para_dic['translate'][column] = [max(data[column]), min(data[column])]
-
         # Convert numerical columns whose distributions are not normal to normal distribution.
         # Check whether the distribution is normal or not.
-        para_dic['normal_distribution'] = {}
-        for column in num_columns:
-            # normality test
-            stat, p = shapiro(data[column])
+        for column in self.num_columns:
+            # Normality test.
+            stat, p = check_normal_distribution(data)
             print(column, ': Statistics=%.3f, p=%.3f' % (stat, p)),
-            # interpret
-            alpha = 0.05
+
             # When p-value is under 0.05, it means the distribution is different to normal distribution.
+            alpha = 0.05  # Set cutoff to reject the Null hypothesis.
             if p < alpha:
                 print('Sample does not look Gaussian (reject H0)'),
                 # Calculate skewness of distribution.
                 skewness = data[column].skew(axis=0)
-                # get optimal lambda value from non null income values
-                middle = np.array(data[column])
-                middle_clean = middle[~np.isnan(middle)]
-                l, opt_lambda = spstats.boxcox(middle_clean)
-                print('Optimal lambda value:', opt_lambda)
-                data[column] = spstats.boxcox(data[column], lmbda=opt_lambda)
-                para_dic['normal_distribution'][column] = opt_lambda
+
+                # Check whether there are outliers or not.
+                outlier_detector = dc.OutlierDetector(data, column)
+                outlier_index = outlier_detector.mean_detection(data[column])
+                if outlier_index:
+                    # Check whether there are negative values.
+                    if sum(data[column] < 0) == 0:
+                        # If there is none of negative values, apply Box-cox transformation.
+                        power_transformer = PowerTransformer(method='box-cox')
+                        data[column] = power_transformer.fit_transform(data[column])
+                    else:
+                        # If there are some negative values, apply yeo-johnson method.
+                        power_transformer = PowerTransformer(method='yeo-johnson')
+                        data[column] = power_transformer.fit_transform(data[column])
+                    # Store power transformer into dictionary.
+                    self.num_transform_dic[column] = power_transformer
+                else:
+                    # If there are some outliers, apply quantile transformer to normal distribution.
+                    quantile_transformer = QuantileTransformer(output_distribution='normal', random_state=1021)
+                    data[column] = quantile_transformer.fit_transform(data[column])
+                    # Store quantile transformer into dictionary.
+                    self.num_transform_dic[column] = quantile_transformer
             else:
                 print('Sample looks Gaussian (fail to reject H0)')
-                para_dic['normal_distribution'][column] = None
-
-        # Standardization.
-        scaler = StandardScaler()
-        scaler.fit(data[num_columns])
-        data[num_columns] = scaler.transform(data[num_columns])
-        para_dic['scaler'] = scaler
+                # If the column is normal distribution, assign 'None' to transformer dictionary.
+                self.num_transform_dic[column] = None
 
         # Round the number into .3float, to lower running time.
         data = data.round(3)
 
+        # Fill None with 'mean' for numerical columns.
+        na_filler = dc.NaFiller()
+        data = na_filler.fit_transform(data, self.num_columns)
+        # Store imputer into dictionary.
+        self.num_na_filler = na_filler
+
+        return data
+
+    def transform(self, data):
+        """Transform numeric column, especially for test data.
+
+        Apply same method in fit_transform() function to transform target dataframe.
+
+        :param data: Dataframe. The target Pandas dataframe to be transformed.
+
+        :return: Dataframe. The processed dataframe.
+        """
+        # Convert numerical columns whose distributions are not normal to normal distribution.
+        for column in self.num_transform_dic.keys():
+            transformer = self.num_transform_dic[column]
+            data[column] = transformer.transform(data[column])
+
+        # Round the number into .3float, to lower running time.
+        data = data.round(3)
+
+        # Fill None with 'mean' for numerical columns.
+        na_filler = self.num_na_filler
+        data = na_filler.transform(data, self.num_columns)
+
         return data
 
 
-def train_converter(data, id_col, target_col):
-    """Detect column types, as well as feature engineering.
+class TargetConverter(object):
+    """The class to convert target class from string into numeric.
 
-    Firstly, detect column types. And then conduct feature engineering on
-    numeric columns, and category columns.
-
-    :param data: Dataframe. The input dataframe in pandas form.
-    :param id_col: List. The list of ID column names.
-    :param target_col: List. The list of Target column names.
-
-    :return: Dataframe. The output dataframe after feature engineering.
     """
-    # Detect column types and divide them into corresponding lists.
-    num_columns, cate_columns = column_type_detection(data, id_col, target_col)
+    def __init__(self, target_column):
+        """Initialize class with given parameters.
 
-    # Feature engineering with numeric columns.
-    data = num_fe(data, num_columns)
+        :param target_column: String. The name of target column.
+        """
+        # Assign parameters.
+        self.target_column = target_column
+        # Create variable to store transformer.
+        self.label_encoder = None
 
-    # Feature engineering with category columns.
-    data = cate_fe(data, cate_columns)
+    def fit_transform(self, data):
+        """Fit and transform target variable.
 
-    # Convert target variable into numerical if currently not.
-    if result[target_col].dtype not in ['int', 'float']:
-        gen_le = LabelEncoder()
-        gen_le.fit(data[target_col])
-        data[target_col] = gen_le.transform(data[target_col])
+        Fit and convert target variable into numbers if it's string type.
 
-    return data,
+        :param data: Dataframe. The Pandas dataframe, which to be processed.
+
+        :return: Dataframe. The transformed dataframe.
+        """
+        # Convert target variable into numerical if currently not.
+        if data[self.target_column].dtype not in ['int', 'float']:
+            gen_le = LabelEncoder()
+            data[self.target_column] = gen_le.fit_transform(data[self.target_column])
+            # Store label encoder for target column.
+            self.label_encoder = gen_le
+
+        return data
+
+    def transform(self, data):
+        """Transform target variable to numeric.
+
+        Apply the same method in fit_transform() function to convert target
+        column into numeric if not numeric.
+
+        :param data: Dataframe. The Pandas dataframe to be processed.
+
+        :return: Dataframe. The transformed dataframe.
+        """
+        # Convert target variable into numerical using the same method ,if currently not.
+        if not self.label_encoder:
+            label_encoder = self.label_encoder
+            data[self.target_column] = label_encoder.transform(data[self.target_column])
+
+        return data
 
 
+def convert_sparse(data):
+    """Convert columns with sparse data into sparse matrix.
+
+    Use sparse related function in Scipy to convert sparse data columns into
+    sparse matrix.
+
+    :param data: Dataframe. The Pandas dataframe to be processed.
+
+    :return: Dataframe. The converted dataframe.
+    """
+    # Check whether it's sparse data column or not.
+    if scipy.sparse.issparse(data):
+        sparse_dataset = scipy.sparse.csr_matrix(data)
+
+    return sparse_dataset
