@@ -381,6 +381,6 @@ def convert_sparse(data):
     """
     # Check whether it's sparse data column or not.
     if scipy.sparse.issparse(data):
-        sparse_dataset = scipy.sparse.csr_matrix(data)
+        data = scipy.sparse.csr_matrix(data)
 
-    return sparse_dataset
+    return data
