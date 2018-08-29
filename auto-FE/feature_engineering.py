@@ -1,5 +1,8 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
+"""
+This script is designed to store some kind of feature engineering methods.
+"""
 # Import necessary libraries.
 import matplotlib.pyplot as plt
 import numpy as np

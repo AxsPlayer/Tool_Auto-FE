@@ -1,16 +1,13 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
+"""
+This script is designed to apply feature engineering methods step-by-step, automatically.
+"""
 # Import necessary libraries.
 import sklearn
 
 import data_clean as dc
 import feature_engineering as fe
-
-
-
-
-
-
 
 
 def train_converter(data, id_col, target_col):
