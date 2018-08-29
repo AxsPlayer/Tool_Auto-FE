@@ -94,7 +94,7 @@ class OutlierDetector(object):
         feature_score = clf.decision_function(features)
 
         # Detect outliers using one-variable method.
-        outlier_index = mean_detection(feature_score)
+        outlier_index = self.mean_detection(feature_score)
 
         return outlier_index
 
