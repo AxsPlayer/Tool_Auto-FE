@@ -81,13 +81,17 @@ class OutlierDetector(object):
 
         :return: List. The list of row index of outliers.
         """
+        # Fill 'NA' with mean for numeric column.
+        na_filler = dc.NaFiller()
+        data = na_filler.fit_transform(self.data, self.data.columns)
+
         # Create instance class of IsolationForest.
         clf = IsolationForest(max_samples=0.5, random_state=1021)
 
         # Filter target column.
-        feature_column = self.data.columns
+        feature_column = data.columns
         feature_column = feature_column.remove[self.target_column]
-        features = self.data[feature_column]
+        features = data[feature_column]
 
         # Fit data and assign score for each data point.
         clf.fit(features)
