@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import warnings
+import logging
 
 from scipy.stats import kstest
 from scipy.stats import shapiro
@@ -16,8 +17,11 @@ import scipy.stats as spstats
 from sklearn.preprocessing import *
 
 import data_clean as dc
+from config import output_log
 
 warnings.filterwarnings('ignore')
+# Create logger for debugging.
+output_log.init_log('./log/crawl_html')
 
 
 class CategoryCombiner(object):

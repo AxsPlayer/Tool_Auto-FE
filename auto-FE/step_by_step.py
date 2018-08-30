@@ -8,6 +8,41 @@ import sklearn
 
 import data_clean as dc
 import feature_engineering as fe
+import feature_filtering as ff
+import evaluation
+
+
+class FeatureEngineering(object):
+    """
+    The class is created to perform feature engineering automatically, without
+    any human labor. What you need to do is feeding into raw data with fixed format
+    and some necessary information, the class and functions will handle hard feature
+    engineering problems for you.
+    """
+    def __init__(self, id_columns, target_column):
+        """Initialization with given parameters.
+
+        :param id_columns: List. The list of ID column names.
+        :param target_column: String. The target column name.
+        """
+        # Assign parameters.
+        self.id_columns = id_columns
+        self.target_column = target_column
+        # Create dictionary or variable to store converters.
+
+    def fit_transform(self, data):
+        """Fit and transform train data, with automatic feature engineering methods.
+
+        Automatically clean train data and perform feature engineering methods, return
+        the clean data which is ready to be fed into model.
+
+        :param data: Dataframe. The Pandas dataframe to be processed.
+
+        :return: Dataframe. The converted dataframe which is suitable as model input.
+        """
+        #
+
+
 
 
 def train_converter(data, id_col, target_col):
