@@ -7,12 +7,25 @@ This script is designed for unit test for all the functions in automatic feature
 import logging
 import os
 import unittest
+import pandas as pd
 
 import data_clean
 import feature_engineering
 import feature_selection
 import step_by_step
 import evaluation
+
+
+def fetch_data(fold_path):
+    """Fetch data saving in fold path.
+
+    Convert data into suitable format, using csv files in fold path.
+
+    :param fold_path: String. The fold in which data files are saved.
+
+    :return: Dataframe. Combined dataframe to be tested on.
+    """
+
 
 
 class TestFeatureEngineering(unittest.TestCase):
@@ -24,10 +37,8 @@ class TestFeatureEngineering(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         """Init the test class with all the attributes."""
         super(TestFeatureEngineering, self).__init__(*args, **kwargs)
+        self.file_path = 'data/'
         self.
-        self.
-
-    def fetch_data(self):
 
     def test_data_clean(self):
 
