@@ -91,7 +91,7 @@ class CategoryFeatureEngineer(object):
         :param cate_columns: List. The list consists of category column names.
         """
         # Assign parameters.
-        self.cate_column = cate_columns
+        self.cate_columns = cate_columns
         # Create convert dictionary.
         self.cate_encoding_dic = {}
         self.cate_combiner = None

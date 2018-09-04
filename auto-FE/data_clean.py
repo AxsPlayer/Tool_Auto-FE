@@ -10,19 +10,23 @@ from imblearn import over_sampling
 from sklearn import preprocessing as pp
 from sklearn.ensemble import IsolationForest
 
+import feature_engineering as fe
+
 
 class OutlierDetector(object):
     """
     The class of several methods to detect outliers.
     """
-    def __init__(self, data, target_column):
+    def __init__(self, data, target_column, id_columns):
         """Initialize outlier detector with dataframe.
 
         :param data: Dataframe. Input Pandas dataframe, without target column.
         :param target_column: String. The target column name.
+        :param id_columns: List. The list of ID column names.
         """
         self.data = data
         self.target_column = target_column
+        self.id_columns = id_columns
 
     @staticmethod
     def median_detection(values):
@@ -72,6 +76,23 @@ class OutlierDetector(object):
 
         return result_index
 
+    @staticmethod
+    def preprocess(data, cate_columns):
+        """Preprocess data before feeding into model.
+
+        Convert category data into numeric data, for model.
+
+        :param data: Dataframe. The target Pandas dataframe to be processed.
+        :param cate_columns: List. The list consisting of category column names.
+
+        :return: Dataframe. Converted data which can be fed into model.
+        """
+        # Category column feature engineering.
+        cate_fe = fe.CategoryFeatureEngineer(cate_columns)
+        data = cate_fe.fit_transform(data)
+
+        return data
+
     def isolation_forest(self):
         """Outlier detection using IsolationForest.
 
@@ -82,16 +103,22 @@ class OutlierDetector(object):
         :return: List. The list of row index of outliers.
         """
         # Fill 'NA' with mean for numeric column.
-        na_filler = dc.NaFiller()
+        na_filler = NaFiller()
         data = na_filler.fit_transform(self.data, self.data.columns)
 
         # Create instance class of IsolationForest.
         clf = IsolationForest(max_samples=0.5, random_state=1021)
 
         # Filter target column.
-        feature_column = data.columns
-        feature_column = feature_column.remove[self.target_column]
+        feature_column = data.columns.tolist()
+        feature_column.remove(self.target_column)
+        for element in self.id_columns:
+            feature_column.remove(element)
         features = data[feature_column]
+
+        # Preprocess data.
+        num_columns, cate_columns = fe.column_type_detection(data, self.id_columns, self.target_column)
+        features = self.preprocess(features, cate_columns)
 
         # Fit data and assign score for each data point.
         clf.fit(features)
@@ -130,8 +157,10 @@ class OverSampler(object):
 
         # Create SMOTE class and over-sample minority data.
         smoter = over_sampling.SMOTE(ratio={label: sample_num}, random_state=1021)
-        feature_column = self.data.columns
-        feature_column = feature_column.remove[self.target_column]
+        feature_column = data.columns.tolist()
+        feature_column.remove(self.target_column)
+        for element in self.id_columns:
+            feature_column.remove(element)
         feature, target = smoter.fit_sample(X=self.data[feature_column], y=self.data[self.target_column])
         feature[self.target_column] = target
 
@@ -202,11 +231,11 @@ class NaFiller(object):
             else:
                 # Create flag column, '1' for missing value, '0' for not.
                 data[column + '_flag'] = np.zeros(shape=len(data[column]))
-                data[column + '_flag'][data[column][data[column].isnull().values is True].index.tolist()] = 1
+                data[column + '_flag'][np.where(data[column].isnull().values == True)[0].tolist()] = 1
 
                 # Fill 'NA' with mean value in numeric column.
                 imp = pp.Imputer(missing_values='NaN', strategy=self.numeric_method, axis=0)
-                data[column] = imp.fit_transform(data[column])
+                data[column] = imp.fit_transform(data[[column]])
                 self.num_imputer_dic[column] = imp
 
         return data
@@ -239,7 +268,7 @@ class NaFiller(object):
         return data
 
 
-def wash_data(data, target_column, outlier=False):
+def wash_data(data, target_column, id_columns, outlier=False):
     """Clean unusual data rows.
 
     Remove repetitive rows, rows with too many missing values, and report rows which
@@ -247,6 +276,7 @@ def wash_data(data, target_column, outlier=False):
 
     :param data: Dataframe. The Pandas dataframe to be washed.
     :param target_column: String. The target column name.
+    :param id_columns: List. The list of ID column names.
     :param outlier: Boolean value. [default: False]. Whether to discard or not.
 
     :return: Dataframe. The converted Pandas dataframe.
@@ -259,7 +289,7 @@ def wash_data(data, target_column, outlier=False):
     data = data.dropna(thresh=int(data.shape[1]*percent))
 
     # Detect outliers and report or remove.
-    outlier_detector = OutlierDetector(data, target_column)
+    outlier_detector = OutlierDetector(data, target_column, id_columns)
     outlier_index = outlier_detector.isolation_forest()
     # Check the action on outliers.
     if not outlier:

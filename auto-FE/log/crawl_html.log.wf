@@ -1,0 +1,8 @@
+ERROR: 09-04 20:13:17: ultratb.py:982 * 140735081091072 An unexpected error occurred while tokenizing input
+The following traceback may be corrupted or invalid
+The error message is: ('EOF in multi-line string', (1, 4))
+
+ERROR: 09-04 20:13:38: ultratb.py:982 * 140735081091072 An unexpected error occurred while tokenizing input
+The following traceback may be corrupted or invalid
+The error message is: ('EOF in multi-line string', (1, 4))
+
