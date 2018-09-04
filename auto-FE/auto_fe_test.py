@@ -16,6 +16,29 @@ import step_by_step
 import evaluation
 
 
+def convert_data(combats, features, win_column=None):
+    """Convert data into suitable format.
+
+    Combine features and combats data, and convert into data in suitable
+    format for training.
+
+    :param combats: Dataframe. The Pandas dataframe which contains combats with
+                two players with their id, as well as the winner id.
+    :param features: Dataframe. The Pandas dataframe which contains every player's characters.
+    :param win_column: String or None. [Default: None]. Whether combats dataframe contains winner
+                    column or not. If yes, the column name of winner column.
+
+    :return: Dataframe. The converted dataframe for training or testing.
+    """
+    # Create new dataframe to store values, and loop through.
+    column_name = list(features.columns + '_1') + list(features.columns + '_2') + ['win']
+    results = pd.DataFrame(columns=column_name)
+
+    for
+        results.loc[0]
+
+
+
 def fetch_data(fold_path):
     """Fetch data saving in fold path.
 
@@ -25,7 +48,14 @@ def fetch_data(fold_path):
 
     :return: Dataframe. Combined dataframe to be tested on.
     """
+    # Read all the data from target fold path.
+    pokemon = pd.read_csv(fold_path+'/pokemon.csv')
+    combats = pd.read_csv(fold_path+'/combats.csv')
+    test_data = pd.read_csv(fold_path+'/tests.csv')
 
+    # Convert data into suitable format for training and testing.
+    training_data = convert_data(combats, pokemon, win_column='Winner')
+    testing_data = convert_data(test_data, pokemon)
 
 
 class TestFeatureEngineering(unittest.TestCase):
