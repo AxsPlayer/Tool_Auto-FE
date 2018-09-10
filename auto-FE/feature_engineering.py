@@ -124,6 +124,7 @@ class CategoryFeatureEngineer(object):
         # Label encoder to convert values in category column into numeric values.
         for column in self.cate_columns:
             gen_le = LabelEncoder()
+            print data[column]
             gen_le.fit(data[column])
             data[column] = gen_le.transform(data[column])
             # Store label encoder into dictionary.
