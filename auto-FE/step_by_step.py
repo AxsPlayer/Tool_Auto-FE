@@ -36,26 +36,27 @@ class FeatureEngineering(object):
         self.feature_embedded = None
         self.feature_decomposition = None
 
-    def fit_transform(self, data):
+    def fit_transform(self, dataset):
         """Fit and transform train data, with automatic feature engineering methods.
 
         Automatically clean train data and perform feature engineering methods, return
         the clean data which is ready to be fed into model.
 
-        :param data: Dataframe. The Pandas dataframe to be processed.
+        :param dataset: Dataframe. The Pandas dataframe to be processed.
 
         :return: Dataframe. The converted dataframe which is suitable as model input.
         """
         # Data clean process.
         # -------------------
         # Detect column types.
+        data = dataset.copy()
         num_columns, cate_columns = fe.column_type_detection(data, self.id_columns, self.target_column)
 
         # Step1: Wash data with repetitive and abnormal data.
-        data = dc.wash_data(data, self.target_column)
+        data = dc.wash_data(data, self.target_column, self.id_columns)
 
         # Step2: Under-sample the data to balanced ratio.
-        data = dc.sample_data(data, self.target_column, method='under-sampling')
+        data = dc.sample_data(data, self.target_column, self.id_columns, method='under-sampling')
 
         # Step3: Category column feature engineering.
         cate_fe = fe.CategoryFeatureEngineer(cate_columns)
@@ -64,7 +65,7 @@ class FeatureEngineering(object):
         self.cate_fe = cate_fe
 
         # Step4: Outlier detection.
-        outlier_detector = dc.OutlierDetector(data, self.target_column)
+        outlier_detector = dc.OutlierDetector(data, self.target_column, self.id_columns)
         outlier_index = outlier_detector.isolation_forest()
         print('The list of outlier index is: ' + str(outlier_index))
 
@@ -77,7 +78,7 @@ class FeatureEngineering(object):
         self.num_fe = num_fe
 
         # Step2: Over-sample the data to balanced ratio.
-        data = dc.sample_data(data, self.target_column, method='over-sampling')
+        data = dc.sample_data(data, self.target_column, self.id_columns, method='over-sampling')
 
         # Step3: Convert target variable to numerical variable.
         target_converter = fe.TargetConverter(self.target_column)
@@ -107,7 +108,7 @@ class FeatureEngineering(object):
 
         return data
 
-    def transform(self, data):
+    def transform(self, dataset):
         """Transform test data, with automatic feature engineering methods.
 
         Automatically clean train data and perform feature engineering methods, return
@@ -121,6 +122,7 @@ class FeatureEngineering(object):
         # Data clean process.
         # -------------------
         # Detect column types.
+        data = dataset.copy()
         num_columns, cate_columns = fe.column_type_detection(data, self.id_columns, self.target_column)
 
         # Step1: Category column feature engineering.

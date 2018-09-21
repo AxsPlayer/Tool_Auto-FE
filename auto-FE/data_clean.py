@@ -5,6 +5,7 @@ This package is used for data cleaning, containing several kind of data cleaning
 """
 # Import necessary libraries.
 import numpy as np
+import pandas as pd
 
 from imblearn import over_sampling
 from sklearn import preprocessing as pp
@@ -70,8 +71,8 @@ class OutlierDetector(object):
         upper_limit = mean + b * std
 
         # Filter out outliers, out of the normal range.
-        lower_index = values.index(values < lower_limit)
-        upper_index = values.index(values > upper_limit)
+        lower_index = [num for num in xrange(len(values)) if values[num] < lower_limit]
+        upper_index = [num for num in xrange(len(values)) if values[num] > upper_limit]
         result_index = lower_index + upper_index
 
         return result_index
@@ -113,7 +114,8 @@ class OutlierDetector(object):
         feature_column = data.columns.tolist()
         feature_column.remove(self.target_column)
         for element in self.id_columns:
-            feature_column.remove(element)
+            if element in feature_column:
+                feature_column.remove(element)
         features = data[feature_column]
 
         # Preprocess data.
@@ -126,6 +128,7 @@ class OutlierDetector(object):
 
         # Detect outliers using one-variable method.
         outlier_index = self.mean_detection(feature_score)
+        print('The ratio of outliers is %f' % (len(outlier_index) / float(len(feature_score))))
 
         return outlier_index
 
@@ -134,37 +137,36 @@ class OverSampler(object):
     """
     The class of several methods for oversampling.
     """
-    def __init__(self, data, target_column):
+    def __init__(self, data, target_column, id_columns):
         """Initialize sampler with dataframe, as well as target column name.
 
         :param data: Dataframe. Input Pandas dataframe, with target column.
         :param target_column: String. The target column name.
+        :param id_columns: String. The id column name.
         """
         self.data = data
         self.target_column = target_column
+        self.id_columns = id_columns
 
-    def smote_sample(self, current_ratio):
+    def smote_sample(self):
         """Over-sampling with SMOTE method.
-
-        :param current_ratio: The current ratio of majority data to minority data,
-                            default is 1.5:1.
 
         :return: Dataframe. The Pandas dataframe with over-sampled minority data.
         """
-        # Calculate label and sample number.
-        label = self.data[self.target_column][0]
-        sample_num = int(self.data.shape[0] * current_ratio)
-
         # Create SMOTE class and over-sample minority data.
-        smoter = over_sampling.SMOTE(ratio={label: sample_num}, random_state=1021)
-        feature_column = data.columns.tolist()
+        smoter = over_sampling.SMOTE(ratio='minority', random_state=1021)
+        feature_column = self.data.columns.tolist()
         feature_column.remove(self.target_column)
         for element in self.id_columns:
-            feature_column.remove(element)
+            if element in feature_column:
+                feature_column.remove(element)
         feature, target = smoter.fit_sample(X=self.data[feature_column], y=self.data[self.target_column])
-        feature[self.target_column] = target
 
-        return feature
+        # Combine re-sample results into dataframe.
+        feature_df = pd.DataFrame(columns=feature_column, data=feature)
+        feature_df[self.target_column] = target
+
+        return feature_df
 
 
 class UnderSampler(object):
@@ -289,7 +291,7 @@ def wash_data(data, target_column, id_columns, outlier=False):
     data = data.dropna(thresh=int(data.shape[1]*percent))
 
     # Detect outliers and report or remove.
-    outlier_detector = OutlierDetector(data, target_column, id_columns)
+    outlier_detector = OutlierDetector(data.copy(), target_column, id_columns)
     outlier_index = outlier_detector.isolation_forest()
     # Check the action on outliers.
     if not outlier:
@@ -299,10 +301,16 @@ def wash_data(data, target_column, id_columns, outlier=False):
         # Drop the outliers.
         data.drop(outlier_index, axis=0, inplace=True)
 
+    # Drop index column.
+    feature_column = data.columns.tolist()
+    for element in id_columns:
+        feature_column.remove(element)
+    data = data[feature_column]
+
     return data
 
 
-def sample_data(data, target_column, method='both'):
+def sample_data(data, target_column, id_columns, method='both'):
     """Sample the data to be balanced.
 
     Under-sampling majority class and over-sampling minority class to have the ratio of 1:1.
@@ -310,6 +318,7 @@ def sample_data(data, target_column, method='both'):
 
     :param data: Dataframe. The Pandas dataframe to be sampled.
     :param target_column: String. The target column name.
+    :param id_columns: String. The id column name.
     :param method: String. [default: 'both']. Choose from list ['both', 'under-sampling', 'over-sampling']. When
                 set to 'both', both methods will be applied to dataframe, or when set to ether
                 of other two methods, the corresponding method will be applied to dataframe alone.
@@ -329,13 +338,14 @@ def sample_data(data, target_column, method='both'):
         under_sampler = UnderSampler(major_data, target_column)
         # Choose random method as default method.
         major_data = under_sampler.random_sample(current_ratio, target_ratio)
+
+        # Combine majority data and minority data.
+        data = pd.concat([major_data, minor_data], ignore_index=True)
+
     # Over-sampling the minority class data.
     if method in ['both', 'over-sampling']:
         # Create over-sampler and over sample minority using SMOTE method.
-        over_sampler = OverSampler(minor_data, target_column)
-        minor_data = over_sampler.smote_sample(current_ratio)
+        over_sampler = OverSampler(data, target_column, id_columns)
+        data = over_sampler.smote_sample()
 
-    # Combine majority data and minority data.
-    result = pd.concat([major_data, minor_data], ignore_index=True)
-
-    return result
+    return data

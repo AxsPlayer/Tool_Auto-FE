@@ -103,3 +103,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 .DS_Store
+*.2018-09-04
+*.wf
+*.wf
+auto-FE/log/crawl_html.log.wf
+*.wf

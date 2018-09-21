@@ -18,6 +18,7 @@ from sklearn.preprocessing import *
 
 import data_clean as dc
 from config import output_log
+from util import PowerTransformer
 
 warnings.filterwarnings('ignore')
 # Create logger for debugging.
@@ -98,7 +99,7 @@ class CategoryFeatureEngineer(object):
         self.cate_label_dic = {}
         self.cate_na_filler = None
 
-    def fit_transform(self, data):
+    def fit_transform(self, dataset):
         """Feature engineering for category columns.
 
         Conduct feature engineering to category columns.
@@ -107,11 +108,12 @@ class CategoryFeatureEngineer(object):
             2. Combine small categories into one same category.
             3. One-hot encoding for category columns.
 
-        :param data: Dataframe. The input dataframe.
+        :param dataset: Dataframe. The input dataframe.
 
         :return: Dataframe. The output dataframe with converted category columns.
         """
         # Fill None with 'missing' for category columns.
+        data = dataset.copy()
         na_filler = dc.NaFiller()
         data = na_filler.fit_transform(data, self.cate_columns)
         self.cate_na_filler = na_filler
@@ -120,29 +122,33 @@ class CategoryFeatureEngineer(object):
         cate_combiner = CategoryCombiner(self.cate_columns)
         data = cate_combiner.fit_transform(data)
         self.cate_combiner = cate_combiner
-
         # Label encoder to convert values in category column into numeric values.
+        result = pd.DataFrame()
         for column in self.cate_columns:
             gen_le = LabelEncoder()
-            print data[column]
-            gen_le.fit(data[column])
-            data[column] = gen_le.transform(data[column])
+            result[column] = gen_le.fit_transform(data[column])
             # Store label encoder into dictionary.
             self.cate_label_dic[column] = gen_le
 
             # Encode category columns with One-hot Encoding method.
             gen_ohe = OneHotEncoder()
-            gen_ohe.fit(data[[column]])
-            gen_feature_arr = gen_ohe.transform(data[[column]]).toarray()
+            gen_ohe.fit(result[[column]])
+            gen_feature_arr = gen_ohe.transform(result[[column]]).toarray()
             gen_feature_labels = [column + '_' + str(cls_label)
                                   for cls_label in gen_le.classes_]
             gen_features = pd.DataFrame(gen_feature_arr,
                                         columns=gen_feature_labels)
-            data = pd.concat([data, gen_features], axis=1)
+            result = pd.concat([result, gen_features], axis=1)
             # Store encoders into dictionary.
             self.cate_encoding_dic[column] = gen_ohe
 
-        return data
+        data = data.reset_index()
+        # Add other columns into result.
+        for column in data.columns:
+            if column not in self.cate_columns and column != 'index':
+                result = pd.concat([result, data[column]], axis=1)
+
+        return result
 
     def transform(self, data):
         """The feature engineering for category columns.
@@ -238,7 +244,7 @@ class NumericFeatureEngineer(object):
 
         return stat, p
 
-    def fit_transform(self, data):
+    def fit_transform(self, dataset):
         """Feature engineering for numeric columns.
 
         Conduct feature engineering to numeric columns.
@@ -248,15 +254,17 @@ class NumericFeatureEngineer(object):
             4. Standardization.
             5. Round to float3.
 
-        :param data: Dataframe. The input dataframe.
+        :param dataset: Dataframe. The input dataframe.
 
         :return: Dataframe. The output dataframe with converted numeric columns.
         """
         # Convert numerical columns whose distributions are not normal to normal distribution.
         # Check whether the distribution is normal or not.
+        data = dataset.copy()
         for column in self.num_columns:
+            print column
             # Normality test.
-            stat, p = check_normal_distribution(data)
+            stat, p = self.check_normal_distribution(data[column])
             print(column, ': Statistics=%.3f, p=%.3f' % (stat, p)),
 
             # When p-value is under 0.05, it means the distribution is different to normal distribution.
@@ -267,24 +275,26 @@ class NumericFeatureEngineer(object):
                 skewness = data[column].skew(axis=0)
 
                 # Check whether there are outliers or not.
-                outlier_detector = dc.OutlierDetector(data, column)
+                outlier_detector = dc.OutlierDetector(data, [], [])
                 outlier_index = outlier_detector.mean_detection(data[column])
-                if outlier_index:
+                # todo check outlier function.
+                if True:
                     # Check whether there are negative values.
+                    print '\nThere is no outlier.'
                     if sum(data[column] < 0) == 0:
                         # If there is none of negative values, apply Box-cox transformation.
                         power_transformer = PowerTransformer(method='box-cox')
-                        data[column] = power_transformer.fit_transform(data[column])
+                        data[column] = power_transformer.fit_transform(data[column].reshape(-1, 1))
                     else:
                         # If there are some negative values, apply yeo-johnson method.
                         power_transformer = PowerTransformer(method='yeo-johnson')
-                        data[column] = power_transformer.fit_transform(data[column])
+                        data[column] = power_transformer.fit_transform(data[column].reshape(-1, 1))
                     # Store power transformer into dictionary.
                     self.num_transform_dic[column] = power_transformer
                 else:
                     # If there are some outliers, apply quantile transformer to normal distribution.
                     quantile_transformer = QuantileTransformer(output_distribution='normal', random_state=1021)
-                    data[column] = quantile_transformer.fit_transform(data[column])
+                    data[column] = quantile_transformer.fit_transform(data[column].reshape(-1, 1))
                     # Store quantile transformer into dictionary.
                     self.num_transform_dic[column] = quantile_transformer
             else:
@@ -315,7 +325,7 @@ class NumericFeatureEngineer(object):
         # Convert numerical columns whose distributions are not normal to normal distribution.
         for column in self.num_transform_dic.keys():
             transformer = self.num_transform_dic[column]
-            data[column] = transformer.transform(data[column])
+            data[column] = transformer.transform(data[column].reshape(-1, 1))
 
         # Round the number into .3float, to lower running time.
         data = data.round(3)

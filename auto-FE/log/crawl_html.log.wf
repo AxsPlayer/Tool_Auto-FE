@@ -1,8 +1,21 @@
-ERROR: 09-04 20:13:17: ultratb.py:982 * 140735081091072 An unexpected error occurred while tokenizing input
-The following traceback may be corrupted or invalid
-The error message is: ('EOF in multi-line string', (1, 4))
+ERROR: 09-20 17:24:53: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
 
-ERROR: 09-04 20:13:38: ultratb.py:982 * 140735081091072 An unexpected error occurred while tokenizing input
-The following traceback may be corrupted or invalid
-The error message is: ('EOF in multi-line string', (1, 4))
+ERROR: 09-20 17:25:06: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
+
+ERROR: 09-20 17:25:24: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
+
+ERROR: 09-20 17:25:38: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
+
+ERROR: 09-20 17:26:17: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
+
+ERROR: 09-20 17:29:22: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
+
+ERROR: 09-20 17:29:29: ultratb.py:152 * 140735081091072 Internal Python error in the inspect module.
+Below is the traceback from this internal error.
 

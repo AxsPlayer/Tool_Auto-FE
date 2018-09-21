@@ -5,8 +5,11 @@ This script is designed to store some kind of feature filtering methods.
 """
 # Import necessary libraries.
 import pandas as pd
+import numpy as np
 from sklearn import feature_selection as fe
 from sklearn import decomposition as dc
+from sklearn.svm import LinearSVC
+from sklearn.feature_selection import SelectFromModel
 
 
 class FeatureFilter(object):
@@ -38,20 +41,31 @@ class FeatureFilter(object):
         threshold = 0.0
         var_thre = fe.VarianceThreshold(threshold=threshold)
         result = var_thre.fit_transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        feature_select = data.columns.difference([self.target_column])[var_thre.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
         # Store converter.
         self.variance_threshold = var_thre
 
         # Univariate feature selection, using univariate statistical tests.
+        data = result
         univar_select = fe.GenericUnivariateSelect(score_func=fe.mutual_info_classif,
                                                    mode='fwe', param=0.05)
+
+        # Check whether it's regression or classification.
+        # If classification, skip univariate.
+        if len(data[self.target_column].value_counts()) <= 2:
+            return result
+        # If Regression.
         result = univar_select.fit_transform(data[data.columns.difference([self.target_column])],
-                                             data[self.target_column])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+                                             np.asarray(data[self.target_column]))
+        feature_select = data.columns.difference([self.target_column])[univar_select.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
         # Store converter.
         self.univar_select = univar_select
 
-        return data
+        return result
 
     def transform(self, data):
         """Transform using same feature filtering method.
@@ -63,15 +77,27 @@ class FeatureFilter(object):
         :return: Dataframe. The converted dataframe.
         """
         # Removing features with low variance.
+        var_thre = self.variance_threshold
         result = var_thre.transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        feature_select = data.columns.difference([self.target_column])[var_thre.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
 
         # Univariate feature selection, using univariate statistical tests.
+        # Check whether it's regression or classification.
+        # If classification, skip univariate.
+        if len(data[self.target_column].value_counts()) <= 2:
+            return result
+        # If Regression.
+        data = result
+        univar_select = self.univar_select
         result = univar_select.transform(data[data.columns.difference([self.target_column])],
-                                         data[self.target_column])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+                                         np.asarray(data[self.target_column]))
+        feature_select = data.columns.difference([self.target_column])[univar_select.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
 
-        return data
+        return result
 
 
 class FeatureEmbedded(object):
@@ -103,11 +129,13 @@ class FeatureEmbedded(object):
                                                                data[self.target_column])
         model = SelectFromModel(lsvc, prefit=True)
         result = model.transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        feature_select = data.columns.difference([self.target_column])[model.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
         # Store converter.
         self.feature_embedded = model
 
-        return data
+        return result
 
     def transform(self, data):
         """Transform using same feature embedded method.
@@ -121,9 +149,11 @@ class FeatureEmbedded(object):
         # Feature selection using SelectFromModel, first version just use L1-based feature selection.
         model = self.feature_embedded
         result = model.transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        feature_select = data.columns.difference([self.target_column])[model.get_support()]
+        result = pd.DataFrame(columns=feature_select, data=result)
+        result[self.target_column] = data[self.target_column]
 
-        return data
+        return result
 
 
 class FeatureDecomposition(object):
@@ -156,11 +186,12 @@ class FeatureDecomposition(object):
         # Apply PCA to original data and fetch result dataframe.
         pca = dc.PCA(n_components='mle', svd_solver='full', random_state=1021)
         result = pca.fit_transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        result = pd.DataFrame(columns=['pca_' + str(num) for num in xrange(result.shape[1])], data=result)
+        result[self.target_column] = data[self.target_column]
         # Store converter.
         self.pca = pca
 
-        return data
+        return result
 
     def transform(self, data):
         """Transform using same feature decomposition method.
@@ -174,6 +205,7 @@ class FeatureDecomposition(object):
         # Apply PCA to original data and fetch result dataframe.
         pca = self.pca
         result = pca.transform(data[data.columns.difference([self.target_column])])
-        data = pd.concat([result, data[self.target_column]], axis=1)
+        result = pd.DataFrame(columns=['pca_' + str(num) for num in xrange(result.shape[1])], data=result)
+        result[self.target_column] = data[self.target_column]
 
-        return data
+        return result
